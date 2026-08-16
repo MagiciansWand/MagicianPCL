@@ -1,11 +1,4 @@
 
----
-
-```markdown
-<div align="center">
-
-# 🧙 MagicianPCL
-
 ### 轻量 · 高效 · 开源 —— 专为 Windows 平台设计的 Minecraft 启动器
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge)](https://github.com)
