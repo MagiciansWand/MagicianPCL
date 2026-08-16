@@ -1,0 +1,40 @@
+{
+  "name": "magician-pcl",
+  "version": "1.0.0",
+  "description": "MagicianPCL - 轻量 · 高效 · 开源的 Minecraft 启动器",
+  "main": "src/main/main.js",
+  "author": "MagicianPCL Team",
+  "license": "CaelLab BY-SA Code License",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "electron-updater": "^6.2.1"
+  },
+  "build": {
+    "appId": "com.magicianpcl.launcher",
+    "productName": "MagicianPCL",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "src/renderer/assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

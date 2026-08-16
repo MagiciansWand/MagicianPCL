@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MagicianPCL</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/themes.css" />
+</head>
+<body>
+  <!-- 自定义标题栏 -->
+  <header class="title-bar">
+    <div class="title-bar-left">
+      <span class="title-icon">🧙</span>
+      <span class="title-text">MagicianPCL</span>
+      <span class="title-version">v1.0.0</span>
+    </div>
+    <div class="title-bar-right">
+      <button class="title-btn" id="btn-minimize">─</button>
+      <button class="title-btn" id="btn-maximize">☐</button>
+      <button class="title-btn" id="btn-close">✕</button>
+    </div>
+  </header>
+
+  <!-- 主容器 -->
+  <div class="app-container">
+    <!-- 侧边栏 -->
+    <nav class="sidebar">
+      <ul class="nav-list">
+        <li class="nav-item active" data-tab="launch">
+          <span class="nav-icon">🚀</span>
+          <span class="nav-label">启动</span>
+        </li>
+        <li class="nav-item" data-tab="versions">
+          <span class="nav-icon">📦</span>
+          <span class="nav-label">版本管理</span>
+        </li>
+        <li class="nav-item" data-tab="download">
+          <span class="nav-icon">⬇️</span>
+          <span class="nav-label">下载中心</span>
+        </li>
+        <li class="nav-item" data-tab="settings">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">设置</span>
+        </li>
+      </ul>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <span class="user-avatar">👤</span>
+          <span class="user-name" id="display-username">Player</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- 内容区域 -->
+    <main class="content">
+      <!-- 启动页 -->
+      <section class="tab-content active" id="tab-launch">
+        <div class="launch-section">
+          <div class="launch-header">
+            <h1>🧙 欢迎使用 MagicianPCL</h1>
+            <p class="subtitle">轻量 · 高效 · 开源的 Minecraft 启动器</p>
+          </div>
+
+          <div class="launch-card">
+            <div class="launch-version-selector">
+              <label>选择版本</label>
+              <select id="version-select">
+                <option value="">加载中...</option>
+              </select>
+            </div>
+
+            <div class="launch-options">
+              <div class="option-group">
+                <label>玩家名</label>
+                <input type="text" id="launch-username" placeholder="输入玩家名称" />
+              </div>
+              <div class="option-group">
+                <label>内存分配</label>
+                <select id="launch-memory">
+                  <option value="1024">1 GB</option>
+                  <option value="2048" selected>2 GB</option>
+                  <option value="4096">4 GB</option>
+                  <option value="8192">8 GB</option>
+                  <option value="16384">16 GB</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="launch-status" id="launch-status">
+              <span class="status-text">就绪</span>
+            </div>
+
+            <button class="btn-launch" id="btn-launch">
+              <span class="btn-icon">▶</span> 启动游戏
+            </button>
+
+            <div class="launch-progress" id="launch-progress" style="display:none;">
+              <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+              </div>
+              <span class="progress-text" id="progress-text">准备中...</span>
+            </div>
+          </div>
+
+          <!-- 游戏输出 -->
+          <div class="console-output" id="console-output">
+            <div class="console-header">
+              <span>📟 游戏日志</span>
+              <button class="console-clear" id="btn-clear-console">清空</button>
+            </div>
+            <div class="console-body" id="console-body">
+              <div class="console-line">等待游戏启动...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 版本管理页 -->
+      <section class="tab-content" id="tab-versions">
+        <div class="versions-section">
+          <h2>📦 版本管理</h2>
+          <div class="versions-toolbar">
+            <button class="btn-refresh" id="btn-refresh-versions">🔄 刷新</button>
+            <span class="versions-count" id="versions-count">已安装: 0</span>
+          </div>
+          <div class="versions-grid" id="versions-grid">
+            <!-- 动态渲染 -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 下载中心页 -->
+      <section class="tab-content" id="tab-download">
+        <div class="download-section">
+          <h2>⬇️ 下载中心</h2>
+          <div class="download-filters">
+            <button class="filter-btn active" data-filter="all">全部</button>
+            <button class="filter-btn" data-filter="release">正式版</button>
+            <button class="filter-btn" data-filter="snapshot">快照版</button>
+            <button class="filter-btn" data-filter="beta">Beta</button>
+            <button class="filter-btn" data-filter="alpha">Alpha</button>
+          </div>
+          <div class="download-list" id="download-list">
+            <!-- 动态渲染 -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 设置页 -->
+      <section class="tab-content" id="tab-settings">
+        <div class="settings-section">
+          <h2>⚙️ 设置</h2>
+          <div class="settings-grid">
+            <div class="settings-group">
+              <h3>🎨 外观</h3>
+              <div class="setting-item">
+                <label>主题模式</label>
+                <select id="setting-theme">
+                  <option value="dark">深色</option>
+                  <option value="light">浅色</option>
+                  <option value="auto">跟随系统</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <h3>🎮 游戏</h3>
+              <div class="setting-item">
+                <label>默认玩家名</label>
+                <input type="text" id="setting-username" placeholder="输入玩家名称" />
+              </div>
+              <div class="setting-item">
+                <label>默认内存 (MB)</label>
+                <input type="number" id="setting-memory" value="2048" min="512" step="512" />
+              </div>
+              <div class="setting-item">
+                <label>Java 路径</label>
+                <input type="text" id="setting-java" placeholder="自动检测" readonly />
+                <button class="btn-browse" id="btn-browse-java">浏览</button>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <h3>📁 目录</h3>
+              <div class="setting-item">
+                <label>.minecraft 目录</label>
+                <input type="text" id="setting-mc-dir" readonly />
+                <button class="btn-browse" id="btn-browse-mc">浏览</button>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <h3>ℹ️ 关于</h3>
+              <div class="about-info">
+                <p><strong>MagicianPCL</strong> v1.0.0</p>
+                <p>轻量 · 高效 · 开源的 Minecraft 启动器</p>
+                <p>由 MagicianPCL Team 开发</p>
+                <p>
+                  <a href="#" id="link-github">GitHub</a> ·
+                  <a href="#" id="link-license">许可证</a>
+                </p>
+              </div>
+            </div>
+          </div>
+          <button class="btn-save-settings" id="btn-save-settings">💾 保存设置</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/app.js"></script>
+  <script src="js/launcher.js"></script>
+  <script src="js/version.js"></script>
+  <script src="js/settings.js"></script>
+</body>
+</html>
