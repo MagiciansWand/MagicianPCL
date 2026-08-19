@@ -36,7 +36,7 @@
 
 ## 📥 下载与安装
 
-前往 [Releases](https://github.com/your-repo/MagicianPCL/releases) 下载最新安装包。
+前往 [Releases](https://github.com/MagiciansWand/MagicianPCL/releases) 下载最新安装包。
 
 安装包为 NSIS 安装程序，支持：
 - 自定义安装目录
