@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog, Notification } = require('electron');
+﻿const { app, BrowserWindow, ipcMain, shell, dialog, Notification } = require('electron');
 const path = require('path');
 
 // 设置 App 用户模型 ID，确保 Windows 原生 Toast 通知正常显示（应用名/图标正确）
@@ -7,6 +7,7 @@ const fs = require('fs');
 const { exec, spawn } = require('child_process');
 const axios = require('axios');
 const { ModrinthAPI, MinecraftAPI, ForgeAPI, FabricAPI } = require('./api');
+const { MS_CLIENT_ID, startDeviceCode, pollDeviceToken, refreshAccessToken, completeLogin } = require('./auth_microsoft');
 
 // 配置
 const CONFIG = {
@@ -456,7 +457,36 @@ ipcMain.handle('install-version', async (event, versionId) => {
 
 // 4. 启动游戏
 ipcMain.handle('launch-game', async (event, launchOptions) => {
-  const { versionId, username, uuid, memory, javaPath } = launchOptions;
+  const { versionId, username, uuid, memory, javaPath, accountId } = launchOptions;
+
+  // 正版账号：用 refresh_token 自动刷新 MC token
+  let accessToken = '0';
+  let effectiveUsername = username || 'Player';
+  let effectiveUuid = uuid || generateUUID();
+  if (accountId) {
+    try {
+      const accs = readAccounts();
+      const acc = accs.find(a => a.id === accountId);
+      if (acc && acc.refreshToken) {
+        const tok = await refreshAccessToken(acc.clientId || MS_CLIENT_ID, acc.refreshToken);
+        if (tok.access_token) {
+          accessToken = tok.access_token;
+          effectiveUsername = acc.name;
+          effectiveUuid = acc.uuid;
+          if (tok.refresh_token) {
+            acc.mcToken = tok.access_token;
+            acc.refreshToken = tok.refresh_token;
+            writeAccounts(accs);
+          }
+          console.log('已使用正版账号:', acc.name);
+        } else if (tok.error) {
+          console.error('正版 token 刷新失败:', tok.error_description || tok.error);
+        }
+      }
+    } catch (e) {
+      console.error('正版 token 刷新异常:', e.message);
+    }
+  }
 
   try {
     const jsonPath = path.join(CONFIG.versionsDir, versionId, `${versionId}.json`);
@@ -488,13 +518,13 @@ ipcMain.handle('launch-game', async (event, launchOptions) => {
       '-cp',
       classpath.join(';'),
       versionData.mainClass || 'net.minecraft.client.main.Main',
-      '--username', username || 'Player',
+      '--username', effectiveUsername,
       '--version', versionId,
       '--gameDir', CONFIG.minecraftDir,
       '--assetsDir', CONFIG.assetsDir,
       '--assetIndex', versionData.assetIndex ? versionData.assetIndex.id : 'legacy',
-      '--uuid', uuid || generateUUID(),
-      '--accessToken', '0',
+      '--uuid', effectiveUuid,
+      '--accessToken', accessToken,
       '--userType', 'mojang',
       '--versionType', 'release',
     ];
@@ -593,6 +623,68 @@ ipcMain.handle('get-java-version', async () => {
       }
     });
   });
+});
+
+// ============ 正版账号 (Microsoft 设备流) ============
+const accountsPath = path.join(CONFIG.launcherDir, 'accounts.json');
+function readAccounts() {
+  try { return JSON.parse(fs.readFileSync(accountsPath, 'utf-8')); } catch (e) { return []; }
+}
+function writeAccounts(arr) {
+  try {
+    if (!fs.existsSync(CONFIG.launcherDir)) fs.mkdirSync(CONFIG.launcherDir, { recursive: true });
+    fs.writeFileSync(accountsPath, JSON.stringify(arr, null, 2));
+  } catch (e) { console.error('写账号失败:', e.message); }
+}
+
+ipcMain.handle('start-ms-auth', async (event, clientId) => {
+  try { return await startDeviceCode(clientId || MS_CLIENT_ID); }
+  catch (e) { return { error: e.message }; }
+});
+
+ipcMain.handle('poll-ms-auth', async (event, data) => {
+  const { clientId, deviceCode } = data;
+  try {
+    const tok = await pollDeviceToken(clientId || MS_CLIENT_ID, deviceCode);
+    if (tok.error === 'authorization_pending') return { pending: true };
+    if (tok.error) return { error: tok.error_description || tok.error };
+    const info = await completeLogin(tok.access_token);
+    return {
+      success: true,
+      mcToken: info.mcToken,
+      uuid: info.uuid,
+      name: info.name,
+      refreshToken: tok.refresh_token,
+      clientId: clientId || MS_CLIENT_ID,
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
+});
+
+ipcMain.handle('get-accounts', async () => readAccounts());
+
+ipcMain.handle('save-account', async (event, account) => {
+  const accs = readAccounts();
+  const idx = accs.findIndex(a => a.uuid === account.uuid);
+  if (idx >= 0) accs[idx] = Object.assign({}, accs[idx], account);
+  else accs.push(account);
+  writeAccounts(accs);
+  return { success: true };
+});
+
+ipcMain.handle('remove-account', async (event, id) => {
+  writeAccounts(readAccounts().filter(a => a.id !== id));
+  return { success: true };
+});
+
+ipcMain.handle('set-active-account', async (event, id) => {
+  const sp = path.join(CONFIG.launcherDir, 'settings.json');
+  let s = {};
+  try { s = JSON.parse(fs.readFileSync(sp, 'utf-8')); } catch (e) {}
+  s.activeAccountId = id;
+  try { fs.writeFileSync(sp, JSON.stringify(s, null, 2)); } catch (e) {}
+  return { success: true };
 });
 
 // 8. 保存设置
@@ -957,7 +1049,11 @@ ipcMain.handle('scan-shaderpacks', async () => {
   } catch (error) {
     return [];
   }
-});
+
+
+// 自动更新模块
+const { registerUpdaterHandlers, initAutoCheck } = require('./updater');
+registerUpdaterHandlers();});
 
 
 // ���������������

@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+﻿const { contextBridge, ipcRenderer } = require('electron');
 
 // 暴露安全的 API 给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -108,8 +108,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 显示 Windows 原生 Toast 通知
   notify: (options) => ipcRenderer.invoke('notify', options),
 
+  // ============ 正版账号 (Microsoft) ============
+  startMicrosoftAuth: (clientId) => ipcRenderer.invoke('start-ms-auth', clientId),
+  pollMicrosoftAuth: (data) => ipcRenderer.invoke('poll-ms-auth', data),
+  getAccounts: () => ipcRenderer.invoke('get-accounts'),
+  saveAccount: (account) => ipcRenderer.invoke('save-account', account),
+  removeAccount: (id) => ipcRenderer.invoke('remove-account', id),
+  setActiveAccount: (id) => ipcRenderer.invoke('set-active-account', id),
+
   // ============ Magician 助手 ============
 
   // Wiki 查询
   queryWiki: (query) => ipcRenderer.invoke('query-wiki', query),
+
+
+    // ===== 自动更新 API =====
+    getUpdaterConfig: () => ipcRenderer.invoke('get-updater-config'),
+    setUpdateSource: (source) => ipcRenderer.invoke('set-update-source', source),
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    downloadUpdate: () => ipcRenderer.invoke('download-update'),
+    installUpdate: () => ipcRenderer.invoke('install-update'),
+    onUpdateDownloadProgress: (callback) => ipcRenderer.on('update-download-progress', (event, data) => callback(data)),
+    onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', () => callback()),
+    onUpdateAvailable: (callback) => ipcRenderer.on('update-available', (event, info) => callback(info)),
 });

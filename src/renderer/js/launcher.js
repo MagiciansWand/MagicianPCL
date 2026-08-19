@@ -26,6 +26,8 @@ const Launcher = {
 
     const username = document.getElementById('launch-username')?.value.trim() || 'Player';
     const memory = parseInt(document.getElementById('launch-memory')?.value || '2048');
+    const accountSel = document.getElementById('account-select');
+    const accountId = accountSel && accountSel.value !== 'offline' ? accountSel.value : null;
 
     // 保存用户名
     const settings = await window.electronAPI.loadSettings();
@@ -52,6 +54,7 @@ const Launcher = {
         uuid: this.generateUUID(),
         memory: memory,
         javaPath: '',
+        accountId: accountId,
       });
 
       if (result.success) {

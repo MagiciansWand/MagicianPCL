@@ -10,6 +10,7 @@ const App = {
     this.setupTitleBar();
     this.setupConsole();
     this.updateUsernameDisplay();
+    AuthManager.init();
   },
 
   async loadSettings() {
@@ -34,11 +35,10 @@ const App = {
     const tabContents = {
       launch: document.getElementById('tab-launch'),
       versions: document.getElementById('tab-versions'),
-      mods: document.getElementById('tab-mods'),
-      resourcepacks: document.getElementById('tab-resourcepacks'),
-      modpacks: document.getElementById('tab-modpacks'),
+      workspace: document.getElementById('tab-workspace'),
       lan: document.getElementById('tab-lan'),
       assistant: document.getElementById('tab-assistant'),
+      about: document.getElementById('tab-about'),
       settings: document.getElementById('tab-settings'),
     };
 
@@ -59,9 +59,22 @@ const App = {
         this.currentTab = tab;
         
         // 懒加载初始化
-        if (tab === 'mods' && typeof ModsManager !== 'undefined' && !ModsManager._initialized) {
+        if (tab === 'workspace' && typeof ModsManager !== 'undefined' && !ModsManager._initialized) {
           console.log('Initializing ModsManager...');
           ModsManager.init();
+          // 工作台子标签切换
+          const wsTabs = document.querySelectorAll('.ws-tab');
+          const subcontents = document.querySelectorAll('.ws-subcontent');
+          wsTabs.forEach(t => {
+            t.addEventListener('click', () => {
+              wsTabs.forEach(x => x.classList.remove('active'));
+              subcontents.forEach(x => x.classList.remove('active'));
+              t.classList.add('active');
+              const sub = t.dataset.subtab;
+              const target = document.getElementById('ws-' + sub);
+              if (target) target.classList.add('active');
+            });
+          });
         }
         if (tab === 'versions' && typeof VersionManager !== 'undefined') {
           VersionManager.init();
@@ -122,6 +135,123 @@ const App = {
     const nameEl = document.getElementById('display-username');
     const username = document.getElementById('launch-username')?.value || this.settings.username || 'Player';
     if (nameEl) nameEl.textContent = username.length > 8 ? username.substring(0, 8) + '…' : username;
+  },
+};
+
+// ===== 正版账号管理器 =====
+const AuthManager = {
+  accounts: [],
+  pollTimer: null,
+
+  async init() {
+    await this.loadAccounts();
+    this.bindEvents();
+  },
+
+  async loadAccounts() {
+    try {
+      this.accounts = await window.electronAPI.getAccounts();
+      const sel = document.getElementById('account-select');
+      if (!sel) return;
+      sel.innerHTML = '<option value="offline">离线模式（输入玩家名）</option>';
+      this.accounts.forEach(acc => {
+        const opt = document.createElement('option');
+        opt.value = acc.id;
+        opt.textContent = acc.name + '（正版）';
+        sel.appendChild(opt);
+      });
+      this.updateAccountUI();
+    } catch (e) { console.warn('加载账号失败', e); }
+  },
+
+  updateAccountUI() {
+    const sel = document.getElementById('account-select');
+    const removeBtn = document.getElementById('btn-remove-account');
+    const uname = document.getElementById('launch-username');
+    if (!sel) return;
+    const isOffline = sel.value === 'offline';
+    if (removeBtn) removeBtn.style.display = isOffline ? 'none' : 'inline-block';
+    if (uname) uname.disabled = !isOffline;
+  },
+
+  bindEvents() {
+    const addBtn = document.getElementById('btn-add-account');
+    const removeBtn = document.getElementById('btn-remove-account');
+    const sel = document.getElementById('account-select');
+    const cancelBtn = document.getElementById('btn-ms-cancel');
+    if (addBtn) addBtn.addEventListener('click', () => this.openAuth());
+    if (removeBtn) removeBtn.addEventListener('click', () => this.removeCurrent());
+    if (sel) sel.addEventListener('change', () => this.updateAccountUI());
+    if (cancelBtn) cancelBtn.addEventListener('click', () => { this.stopPoll(); document.getElementById('ms-auth-modal').style.display = 'none'; });
+  },
+
+  stopPoll() {
+    if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+  },
+
+  async openAuth() {
+    const modal = document.getElementById('ms-auth-modal');
+    const statusEl = document.getElementById('ms-auth-status');
+    const codeEl = document.getElementById('ms-user-code');
+    const urlEl = document.getElementById('ms-verify-url');
+    if (!modal) return;
+
+    const clientId = (document.getElementById('setting-client-id')?.value || '').trim();
+    const data = await window.electronAPI.startMicrosoftAuth(clientId || null);
+    if (data.error) { alert('发起登录失败: ' + data.error); return; }
+    codeEl.textContent = data.user_code;
+    urlEl.href = data.verification_uri;
+    urlEl.textContent = data.verification_uri;
+    statusEl.textContent = '等待你在浏览器中授权...';
+    statusEl.className = 'ms-status';
+    modal.style.display = 'flex';
+
+    const deviceCode = data.device_code;
+    const interval = (data.interval || 5) * 1000;
+    const expiresAt = Date.now() + (data.expires_in || 900) * 1000;
+    this.stopPoll();
+    this.pollTimer = setInterval(async () => {
+      if (Date.now() > expiresAt) {
+        this.stopPoll();
+        statusEl.textContent = '登录超时，请重试';
+        statusEl.className = 'ms-status error';
+        return;
+      }
+      const res = await window.electronAPI.pollMicrosoftAuth({ clientId: clientId || null, deviceCode });
+      if (res.pending) return;
+      this.stopPoll();
+      if (res.error) {
+        statusEl.textContent = '登录失败: ' + res.error;
+        statusEl.className = 'ms-status error';
+        return;
+      }
+      const account = {
+        id: res.uuid,
+        name: res.name,
+        uuid: res.uuid,
+        mcToken: res.mcToken,
+        refreshToken: res.refreshToken,
+        clientId: res.clientId,
+        addedAt: Date.now(),
+      };
+      await window.electronAPI.saveAccount(account);
+      await window.electronAPI.setActiveAccount(account.id);
+      statusEl.textContent = '✅ 登录成功：' + res.name;
+      statusEl.className = 'ms-status success';
+      await this.loadAccounts();
+      this.updateAccountUI();
+      document.getElementById('account-select').value = account.id;
+      setTimeout(() => { modal.style.display = 'none'; }, 1200);
+    }, interval);
+  },
+
+  async removeCurrent() {
+    const sel = document.getElementById('account-select');
+    if (!sel || sel.value === 'offline') return;
+    if (!confirm('确定删除当前正版账号？')) return;
+    await window.electronAPI.removeAccount(sel.value);
+    await this.loadAccounts();
+    this.updateAccountUI();
   },
 };
 
